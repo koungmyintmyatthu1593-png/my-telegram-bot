@@ -7,7 +7,7 @@ from flask import Flask
 from waitress import serve
 
 # =======================================================
-# ၁။ Render အတွက် Web Server
+# Web Server Setup (Render အတွက်)
 # =======================================================
 app = Flask('')
 @app.route('/')
@@ -19,41 +19,70 @@ def run_server():
     serve(app, host='0.0.0.0', port=port)
 
 # =======================================================
-# ၂။ Bot Setup
+# Bot Configuration
 # =======================================================
-BOT_TOKEN = '8687343780:AAEEEGqXQNLz-43fcqBRnlmxb88kCOwD4G4'
+BOT_TOKEN = '8687343780:AAHs889k2qcmEvuRZW-2JJmEZ9JSUJ-mjI8'
 bot = telebot.TeleBot(BOT_TOKEN)
 GROUP_ID = -100223906056351 
 
 # =======================================================
-# ၃။ စာဖျက်ပေးသည့် Function
+# Auto-delete Logic
 # =======================================================
 def delete_msg(chat_id, message_id, delay):
     time.sleep(delay)
     try:
         bot.delete_message(chat_id, message_id)
-    except Exception as e:
-        print(f"စာဖျက်ရန် အမှား: {e}")
+    except: pass
 
 def send_and_schedule_delete(text, delay):
     try:
         msg = bot.send_message(GROUP_ID, text)
         threading.Thread(target=delete_msg, args=(GROUP_ID, msg.message_id, delay), daemon=True).start()
-    except Exception as e:
-        print(f"စာပို့ရန် အမှား: {e}")
+    except: pass
 
 # =======================================================
-# ၄။ User Reply နှင့် Auto-delete
+# Hourly Task (၁ နာရီတစ်ခါ)
+# =======================================================
+def hourly_task():
+    messages = [
+        "ပျင်းနေပြီလား ?", "စော်ရှိလား ?", "ဘယ်ရုပ်ရှင်ကြည့်ချင်ပါလဲ ?",
+        "Movie request group ရဲ့ rules တွေကိုပြောပြရမလား ?",
+        "အရမ်းချစ်တယ် ထားမသွားဘူးနော် 🥺", "အာဘွားပေး 🥺💗",
+        "ဒီနေ့ဘယ်ရုပ်ရှင်တွေ trend ဖြစ်နေလဲ ?", "ဒီနေ့ ဘယ်ရုပ်ရှင်တွေကြည့်ရင်ကောင်းမလဲ ?",
+        "လက်ထပ်ရအောင် 🤭💗", "သာယာတဲ့နေ့လေးတစ်နေ့ပါပဲ 🥰"
+    ]
+    while True:
+        try:
+            send_and_schedule_delete(random.choice(messages), 2700)
+            time.sleep(300)
+            send_and_schedule_delete("‼️ movie finder bot ပို့ထားတဲ့စာက ၅ မိနစ်နေရင် အလိုလိုပျက်ပါမယ်နော် 🎬🍿 ... ‼️", 300)
+            time.sleep(3000)
+        except: 
+            time.sleep(60)
+
+# =======================================================
+# Message Handler
 # =======================================================
 @bot.message_handler(func=lambda message: True)
 def reply_and_delete(message):
     if message.text.startswith('/start'):
-        bot.reply_to(message, "မင်္ဂလာပါ! MOVIE BOX Bot အဆင်သင့်ရှိနေပါပြီဗျာ။")
+        bot.reply_to(message, "မင်္ဂလာပါ! MOVIE BOX Bot အဆင်သင့်ရှိနေပါပြီ။")
         return
-
-    sent_msg = bot.reply_to(message, "ရုပ်ရှင်ရှာဖွေပေးနေပါတယ်... 🍿🎬")
-    warning_msg = bot.send_message(GROUP_ID, "‼️ movie finder bot ပို့ထားတဲ့စာက ၅ မိနစ်နေရင် အလိုလိုပျက်ပါမယ်နော် 🎬🍿 ... ‼️")
     
-    threading.Thread(target=delete_msg, args
+    sent = bot.reply_to(message, "ရုပ်ရှင်ရှာဖွေပေးနေပါတယ်... 🍿🎬")
+    warn = bot.send_message(GROUP_ID, "‼️ movie finder bot ပို့ထားတဲ့စာက ၅ မိနစ်နေရင် အလိုလိုပျက်ပါမယ်နော် 🎬🍿 ... ‼️")
+    threading.Thread(target=delete_msg, args=(GROUP_ID, sent.message_id, 300), daemon=True).start()
+    threading.Thread(target=delete_msg, args=(GROUP_ID, warn.message_id, 300), daemon=True).start()
 
-
+# =======================================================
+# Main Loop (409 Error မတက်အောင် ပြင်ဆင်ထားသည်)
+# =======================================================
+if __name__ == "__main__":
+    threading.Thread(target=run_server, daemon=True).start()
+    threading.Thread(target=hourly_task, daemon=True).start()
+    
+    print("Bot စတင်နေပါပြီ...")
+    
+    # [အရေးကြီး] allowed_updates နှင့် none_stop ကို သုံးခြင်းဖြင့် 409 Conflict ကိုကာကွယ်ပါသည်
+    bot.infinity_polling(none_stop=True, allowed_updates=['message'], timeout=60, long_polling_timeout=60)
+    
