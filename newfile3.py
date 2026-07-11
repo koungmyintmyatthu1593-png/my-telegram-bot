@@ -1,89 +1,41 @@
 import os
 import time
 import threading
-import random
 import telebot
 from flask import Flask
 from waitress import serve
 
-# =======================================================
 # Web Server Setup
-# =======================================================
 app = Flask('')
 @app.route('/')
 def home():
-    return "MOVIE BOX Helper Bot Is Running Alive!"
+    return "Bot is running!"
 
 def run_server():
     port = int(os.environ.get("PORT", 8080))
     serve(app, host='0.0.0.0', port=port)
 
-# =======================================================
-# Bot Configuration
-# =======================================================
-# သင့် Token ကို သေချာစစ်ဆေးပါ
-BOT_TOKEN = '8687343780:AAHs889k2qcmEvuRZW-2JJmEZ9JSUJ-mjI8'
+# Bot Setup
+BOT_TOKEN = '8687343780:AAEEEGqXQNLz-43fcqBRnlmxb88kCOwD4G4'
 bot = telebot.TeleBot(BOT_TOKEN)
-GROUP_ID = -100223906056351 
 
-# =======================================================
-# Message Handling & Auto-delete Logic
-# =======================================================
-def delete_msg(chat_id, message_id, delay):
-    time.sleep(delay)
-    try:
-        bot.delete_message(chat_id, message_id)
-    except: pass
+# သင့် Group ID အမှန်ကို ထည့်ထားပါသည်
+GROUP_ID = -1003906056351 
 
-def send_and_schedule_delete(text, delay):
-    try:
-        msg = bot.send_message(GROUP_ID, text)
-        threading.Thread(target=delete_msg, args=(GROUP_ID, msg.message_id, delay), daemon=True).start()
-    except: pass
-
-# =======================================================
-# Message Handler (User တုံ့ပြန်မှုအတွက်)
-# =======================================================
 @bot.message_handler(func=lambda message: True)
-def reply_and_delete(message):
-    # /start command ကို စစ်ဆေးခြင်း
-    if message.text.startswith('/start'):
-        bot.reply_to(message, "မင်္ဂလာပါ! MOVIE BOX Bot အဆင်သင့်ရှိနေပါပြီ။")
-        return
-    
-    # တခြားစာများအတွက် တုံ့ပြန်ခြင်း
-    sent = bot.reply_to(message, "ရုပ်ရှင်ရှာဖွေပေးနေပါတယ်... 🍿🎬")
-    warn = bot.send_message(GROUP_ID, "‼️ movie finder bot ပို့ထားတဲ့စာက ၅ မိနစ်နေရင် အလိုလိုပျက်ပါမယ်နော် 🎬🍿 ... ‼️")
-    threading.Thread(target=delete_msg, args=(GROUP_ID, sent.message_id, 300), daemon=True).start()
-    threading.Thread(target=delete_msg, args=(GROUP_ID, warn.message_id, 300), daemon=True).start()
+def reply_msg(message):
+    try:
+        # Group ID ကိုက်ညီမှုရှိမရှိ စစ်ဆေးပြီး စာပြန်ခြင်း
+        if message.chat.id == GROUP_ID:
+            bot.reply_to(message, "မင်္ဂလာပါ! ကျွန်တော် အလုပ်လုပ်နေပါပြီ 🍿🎬")
+        else:
+            # တခြားနေရာက စာပို့ရင်လည်း ID ကို သိအောင် ပြပေးပါလိမ့်မယ်
+            bot.reply_to(message, f"ဒီ Group ရဲ့ ID က {message.chat.id} ပါ။")
+    except Exception as e:
+        print(f"Error: {e}")
 
-# =======================================================
-# Hourly Task
-# =======================================================
-def hourly_task():
-    messages = [
-        "ပျင်းနေပြီလား ?", "စော်ရှိလား ?", "ဘယ်ရုပ်ရှင်ကြည့်ချင်ပါလဲ ?",
-        "အရမ်းချစ်တယ် ထားမသွားဘူးနော် 🥺", "အာဘွားပေး 🥺💗",
-        "ဒီနေ့ဘယ်ရုပ်ရှင်တွေ trend ဖြစ်နေလဲ ?", "ဒီနေ့ ဘယ်ရုပ်ရှင်တွေကြည့်ရင်ကောင်းမလဲ ?"
-    ]
-    while True:
-        try:
-            time.sleep(3600) # ၁ နာရီတစ်ခါ စောင့်ရန်
-            send_and_schedule_delete(random.choice(messages), 2700)
-            send_and_schedule_delete("‼️ movie finder bot ပို့ထားတဲ့စာက ၅ မိနစ်နေရင် အလိုလိုပျက်ပါမယ်နော် 🎬🍿 ... ‼️", 300)
-        except: 
-            time.sleep(60)
-
-# =======================================================
-# Main Program
-# =======================================================
 if __name__ == "__main__":
-    # Web Server နှင့် Task ကို Background တွင်စတင်
     threading.Thread(target=run_server, daemon=True).start()
-    threading.Thread(target=hourly_task, daemon=True).start()
-    
     print("Bot စတင်နေပါပြီ...")
-    
-    # Conflict ဖြစ်ခြင်းကို ကာကွယ်ရန် none_stop=True ကိုသုံးပါ
     bot.infinity_polling(none_stop=True)
     
