@@ -5,7 +5,6 @@ import random
 import telebot
 from flask import Flask
 from waitress import serve
-import gc
 
 # =======================================================
 # ၁။ Render အတွက် Web Server
@@ -52,16 +51,9 @@ def reply_and_delete(message):
         bot.reply_to(message, "မင်္ဂလာပါ! MOVIE BOX Bot အဆင်သင့်ရှိနေပါပြီဗျာ။")
         return
 
-    # ရုပ်ရှင်ရှာဖွေမှုအတွက် Reply ပို့ခြင်း
     sent_msg = bot.reply_to(message, "ရုပ်ရှင်ရှာဖွေပေးနေပါတယ်... 🍿🎬")
     warning_msg = bot.send_message(GROUP_ID, "‼️ movie finder bot ပို့ထားတဲ့စာက ၅ မိနစ်နေရင် အလိုလိုပျက်ပါမယ်နော် 🎬🍿 ... ‼️")
     
-    # ၅ မိနစ် (300 စက္ကန့်) နေရင် ဖျက်မယ်
-    threading.Thread(target=delete_msg, args=(GROUP_ID, sent_msg.message_id, 300), daemon=True).start()
-    threading.Thread(target=delete_msg, args=(GROUP_ID, warning_msg.message_id, 300), daemon=True).start()
+    threading.Thread(target=delete_msg, args
 
-# =======================================================
-# ၅။ Hourly Task (၁ နာရီတစ်ခါ)
-# =======================================================
-def hourly
 
