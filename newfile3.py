@@ -8,7 +8,7 @@ from waitress import serve
 import gc
 
 # =======================================================
-# ၁။ Render အတွက် Web Server (Waitress)
+# ၁။ Render အတွက် Web Server
 # =======================================================
 app = Flask('')
 @app.route('/')
@@ -27,7 +27,7 @@ bot = telebot.TeleBot(BOT_TOKEN)
 GROUP_ID = -100223906056351 
 
 # =======================================================
-# ၃။ စာဖျက်ပေးသည့် Function (Error မပါအောင် ထိန်းချုပ်ထားသည်)
+# ၃။ စာဖျက်ပေးသည့် Function
 # =======================================================
 def delete_msg(chat_id, message_id, delay):
     time.sleep(delay)
@@ -44,16 +44,14 @@ def send_and_schedule_delete(text, delay):
         print(f"စာပို့ရန် အမှား: {e}")
 
 # =======================================================
-# ၄။ User တွေဆီ Reply ပို့ရင် Auto-delete လုပ်မယ့် Function
+# ၄။ User Reply နှင့် Auto-delete
 # =======================================================
 @bot.message_handler(func=lambda message: True)
 def reply_and_delete(message):
-    # /start command ကို အရင်စစ်ဆေးခြင်း
     if message.text.startswith('/start'):
         bot.reply_to(message, "မင်္ဂလာပါ! MOVIE BOX Bot အဆင်သင့်ရှိနေပါပြီဗျာ။")
         return
 
-    # ရုပ်ရှင်ရှာဖွေမှု သို့မဟုတ် Reply အတွက်
     sent_msg = bot.reply_to(message, "ရုပ်ရှင်ရှာဖွေပေးနေပါတယ်... 🍿🎬")
     warning_msg = bot.send_message(GROUP_ID, "‼️ movie finder bot ပို့ထားတဲ့စာက ၅ မိနစ်နေရင် အလိုလိုပျက်ပါမယ်နော် 🎬🍿 ... ‼️")
     
@@ -61,7 +59,7 @@ def reply_and_delete(message):
     threading.Thread(target=delete_msg, args=(GROUP_ID, warning_msg.message_id, 300), daemon=True).start()
 
 # =======================================================
-# ၅။ ၁ နာရီတစ်ခါ ပို့မည့် Logic (24 နာရီလည်ပတ်မည်)
+# ၅။ Hourly Task (၁ နာရီတစ်ခါ)
 # =======================================================
 def hourly_task():
     messages = [
@@ -74,33 +72,18 @@ def hourly_task():
     ]
     
     while True:
-        # random စာပို့ပြီး ၄၅ မိနစ် (2700s) နေရင်ဖျက်မယ်
         send_and_schedule_delete(random.choice(messages), 2700)
-        
-        # ၅ မိနစ် (300s) စောင့်
         time.sleep(300)
-        
-        # သတိပေးစာပို့ပြီး ၅ မိနစ် (300s) နေရင်ဖျက်မယ်
         send_and_schedule_delete("‼️ movie finder bot ပို့ထားတဲ့စာက ၅ မိနစ်နေရင် အလိုလိုပျက်ပါမယ်နော် 🎬🍿 ... ‼️", 300)
-        
-        # ကျန်တဲ့ အချိန် (၃၀၀၀ စက္ကန့်) စောင့်ပြီး ၁ နာရီပြည့်အောင် လုပ်မယ်
         time.sleep(3000) 
 
 # =======================================================
-# ၆။ Main Program Run ခြင်း
+# ၆။ Main Program (Error မတက်အောင် ပြင်ဆင်ထားသည်)
 # =======================================================
 if __name__ == "__main__":
-    # Server နှင့် Task အသစ်များကို Background တွင် Run ခြင်း
     threading.Thread(target=run_server, daemon=True).start()
     threading.Thread(target=hourly_task, daemon=True).start()
     
-    # Bot Main Loop
-    while True:
-        try:
-            print("Bot Polling စတင်နေပါပြီ...")
-            gc.collect() 
-            bot.polling(none_stop=True, interval=0, timeout=60, long_polling_timeout=60)
-        except Exception as e:
-            print(f"Error တက်သွားသည်: {e}")
-            time.sleep(10)
-            
+    print("Bot စတင်နေပါပြီ...")
+    bot.infinity_polling(timeout=60, long_polling_timeout=60)
+  
