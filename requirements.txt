@@ -1,3 +1,4 @@
-pyTelegramBotAPI
-Flask
-waitress
+pyrogram
+tgcrypto
+asyncio
+flask
