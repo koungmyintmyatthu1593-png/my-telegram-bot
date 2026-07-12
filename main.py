@@ -1,6 +1,7 @@
 import asyncio
-import re
+import os
 import threading
+import re
 from flask import Flask
 from pyrogram import Client, filters
 from pyrogram.types import Message
@@ -24,7 +25,9 @@ def home():
     return "Bot is Alive and Running! 🚀"
 
 def run_flask():
-    flask_app.run(host='0.0.0.0', port=8080)
+    # Render ရဲ့ Port ကို အလိုအလျောက် ဖတ်ပြီး Run ပေးမယ်
+    port = int(os.environ.get("PORT", 8080))
+    flask_app.run(host='0.0.0.0', port=port)
 
 async def delete_message_after(chat_id: int, message_id: int, delay: int):
     await asyncio.sleep(delay)
@@ -70,7 +73,7 @@ async def handle_movie_request(client: Client, message: Message):
 
         notice_msg = await app.send_message(
             chat_id=GROUP_ID,
-            text="movie finder bot 🔎 ပို့ထားတဲ့ post က ၅ မိနစ်နေရင် အလိုလိုပျက်ပါမယ်နော်🍿🎬 ... ‼️",
+            text="movie finder bot 🔎 ပို့ထားတဲ့ post က ၅ မိနစ်ရင် အလိုလိုပျက်ပါမယ်နော်🍿🎬 ... ‼️",
             reply_to=copied_movie.id
         )
 
@@ -87,16 +90,16 @@ async def handle_movie_request(client: Client, message: Message):
 async def handle_private(client: Client, message: Message):
     return
 
-if __name__ == "__main__":
+async def main():
+    # Web Server ကို Background မှာ Run မယ်
     threading.Thread(target=run_flask, daemon=True).start()
-    print("Movie Finder Bot က Render ပေါ်မှာ အဆင်သင့် ဖြစ်နေပါပြီ... 🚀")
+    print("Movie Finder Bot က Render ပေါ်မှာ စတင်လည်ပတ်နေပါပြီ... 🚀")
     
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-    loop.run_until_complete(app.start())
-    loop.run_forever()
-        
+    # Pyrogram Client ကို စနစ်တကျ အသက်သွင်းမယ်
+    await app.start()
+    # Bot ကို အမြဲတမ်း Live ဖြစ်နေအောင် စောင့်ကြည့်ခိုင်းမယ်
+    await asyncio.Event().wait()
+
+if __name__ == "__main__":
+    # Asyncio Loop ကို အမှားကင်းဆုံး နည်းလမ်းဖြင့် Run ခြင်း
+    asyncio.run(main())
