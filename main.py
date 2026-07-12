@@ -1,54 +1,49 @@
 import os
-import json
-import re
+import sqlite3
 from fastapi import FastAPI, Request
 import telebot
+import uvicorn
 
 BOT_TOKEN = "8942001881:AAETgL-CvjxwH-2SZ-bQqcF_HzOGXhZaYVU"
 CHANNEL_ID = -1004438806546
 GROUP_ID = -1003906056351
-DB_FILE = "movies.json" # ဒေတာကို ဒီဖိုင်ထဲမှာ အသေသိမ်းမယ်
+
+# Render ရဲ့ project directory ထဲမှာ db file ကို အသေသိမ်းမယ်
+DB_PATH = os.path.join(os.getcwd(), "movies.db")
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+cursor = conn.cursor()
+cursor.execute("CREATE TABLE IF NOT EXISTS movies (key TEXT PRIMARY KEY, msg_id INTEGER)")
+conn.commit()
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = FastAPI()
 
-# ဒေတာကို ဖိုင်ထဲကနေ ပြန်ဖတ်မယ်
-def load_db():
-    if os.path.exists(DB_FILE):
-        with open(DB_FILE, "r") as f: return json.load(f)
-    return {}
-
-# ဒေတာကို ဖိုင်ထဲမှာ အသေသိမ်းမယ်
-def save_db(data):
-    with open(DB_FILE, "w") as f: json.dump(data, f)
+@app.get("/") # UptimeRobot အတွက် ပေါ့ပါးတဲ့ Endpoint
+def keep_alive():
+    return {"status": "Bot is running 24/7"}
 
 @app.post(f"/{BOT_TOKEN}")
-async def process_webhook(request: Request):
-    update = telebot.types.Update.de_json(await request.json())
-    bot.process_new_updates([update])
+async def handle(request: Request):
+    bot.process_new_updates([telebot.types.Update.de_json(await request.json())])
     return {"status": "ok"}
 
-# ရုပ်ရှင်တင်ရင် ဖိုင်ထဲမှာ အော်တိုမှတ်မယ်
-@bot.channel_post_handler(func=lambda message: message.chat.id == CHANNEL_ID)
-def save_movie(message):
-    text = message.text or message.caption
+@bot.channel_post_handler(func=lambda m: m.chat.id == CHANNEL_ID)
+def save_movie(m):
+    text = (m.text or m.caption or "").strip().lower()
     if text:
-        db = load_db()
-        db[text.strip().lower()] = message.message_id
-        save_db(db)
-        print(f"✅ Saved: {text.strip().lower()}")
+        cursor.execute("INSERT OR REPLACE INTO movies (key, msg_id) VALUES (?, ?)", (text, m.message_id))
+        conn.commit()
 
-# ရုပ်ရှင်တောင်းရင် ဖိုင်ထဲကနေ ရှာပေးမယ်
-@bot.message_handler(func=lambda message: message.chat.id == GROUP_ID and message.text)
-def find_movie(message):
-    key = message.text.strip().lower()
-    db = load_db()
-    if key in db:
-        bot.forward_message(GROUP_ID, CHANNEL_ID, db[key])
+@bot.message_handler(func=lambda m: m.chat.id == GROUP_ID and m.text)
+def find_movie(m):
+    key = m.text.strip().lower()
+    cursor.execute("SELECT msg_id FROM movies WHERE key=?", (key,))
+    row = cursor.fetchone()
+    if row:
+        bot.forward_message(GROUP_ID, CHANNEL_ID, row[0])
     else:
-        bot.reply_to(message, "❌ ရှာမတွေ့ပါ - ပိုမိုတိကျသော နာမည်ဖြင့် ထပ်ရှာကြည့်ပေးပါခင်ဗျာ။")
+        bot.reply_to(m, "ရုပ်ရှင်မတွေ့ပါခင်ဗျာ။")
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
-    
+                          
