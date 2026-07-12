@@ -1,49 +1,41 @@
 import os
-import sqlite3
 from fastapi import FastAPI, Request
 import telebot
-import uvicorn
 
 BOT_TOKEN = "8942001881:AAETgL-CvjxwH-2SZ-bQqcF_HzOGXhZaYVU"
 CHANNEL_ID = -1004438806546
 GROUP_ID = -1003906056351
 
-# Render ရဲ့ project directory ထဲမှာ db file ကို အသေသိမ်းမယ်
-DB_PATH = os.path.join(os.getcwd(), "movies.db")
-conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-cursor = conn.cursor()
-cursor.execute("CREATE TABLE IF NOT EXISTS movies (key TEXT PRIMARY KEY, msg_id INTEGER)")
-conn.commit()
-
 bot = telebot.TeleBot(BOT_TOKEN)
 app = FastAPI()
 
-@app.get("/") # UptimeRobot အတွက် ပေါ့ပါးတဲ့ Endpoint
-def keep_alive():
-    return {"status": "Bot is running 24/7"}
+# Database မလိုဘဲ မှတ်ထားမယ့် နေရာ (Dictionary)
+# Render restart ကျတိုင်း ဒါက ပြန်လည်စတင်ပါမယ်
+MOVIE_DB = {}
 
 @app.post(f"/{BOT_TOKEN}")
 async def handle(request: Request):
     bot.process_new_updates([telebot.types.Update.de_json(await request.json())])
     return {"status": "ok"}
 
+# Channel ထဲမှာ Forward လုပ်တာနဲ့ မှတ်သွားမယ်
 @bot.channel_post_handler(func=lambda m: m.chat.id == CHANNEL_ID)
 def save_movie(m):
     text = (m.text or m.caption or "").strip().lower()
     if text:
-        cursor.execute("INSERT OR REPLACE INTO movies (key, msg_id) VALUES (?, ?)", (text, m.message_id))
-        conn.commit()
+        MOVIE_DB[text] = m.message_id
+        print(f"✅ Saved: {text} -> {m.message_id}")
 
+# Group ထဲမှာ ရှာရင် ချက်ချင်းပြန်ဖြေမယ်
 @bot.message_handler(func=lambda m: m.chat.id == GROUP_ID and m.text)
 def find_movie(m):
     key = m.text.strip().lower()
-    cursor.execute("SELECT msg_id FROM movies WHERE key=?", (key,))
-    row = cursor.fetchone()
-    if row:
-        bot.forward_message(GROUP_ID, CHANNEL_ID, row[0])
+    if key in MOVIE_DB:
+        bot.forward_message(GROUP_ID, CHANNEL_ID, MOVIE_DB[key])
     else:
-        bot.reply_to(m, "ရုပ်ရှင်မတွေ့ပါခင်ဗျာ။")
+        bot.reply_to(m, "❌ ရုပ်ရှင်မတွေ့ပါ - ရုပ်ရှင် Post ကို Channel ထဲမှာ Forward တစ်ချက် လုပ်ပေးလိုက်ပါ။")
 
 if __name__ == "__main__":
+    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
-                          
+                     
